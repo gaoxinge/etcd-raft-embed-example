@@ -2,3 +2,9 @@
 
 - [leader election](./leader-election)
 - [http transport](./http-transport)
+
+## reference
+
+- [etcd中raft算法的使用方法](https://www.jianshu.com/p/330c79d01a7a)
+- [用etcd/raft组建能够选举的最简集群demo](https://segmentfault.com/a/1190000023103286)
+- [Raft协议实现学习之—etcd/raft库的使用](https://liqul.github.io/blog/etcd_raft_2/)
