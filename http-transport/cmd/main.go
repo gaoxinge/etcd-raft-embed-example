@@ -6,9 +6,9 @@ import (
 
 func main() {
 	peers := map[uint64]string{
-		0x01: "http-transport://127.0.0.1:20001",
-		0x02: "http-transport://127.0.0.1:20002",
-		0x03: "http-transport://127.0.0.1:20003",
+		0x01: "http://127.0.0.1:20001",
+		0x02: "http://127.0.0.1:20002",
+		0x03: "http://127.0.0.1:20003",
 	}
 
 	wrapper1 := pkg.NewWrapper(0x01, peers)
