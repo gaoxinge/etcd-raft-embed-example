@@ -47,39 +47,8 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan struct{}, co
 	}
 
 	storage := raft.NewMemoryStorage()
-	config := &raft.Config{
-		ID:              id,
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         storage,
-		MaxSizePerMsg:   4096,
-		MaxInflightMsgs: 256,
-	}
 	waldir := fmt.Sprintf("counter/wal/%d", id)
-
-	var node raft.Node
-	if wal.Exist(waldir) {
-		node = raft.RestartNode(config)
-	} else {
-		node = raft.StartNode(config, npeers)
-	}
-
-	transport := &rafthttp.Transport{
-		Logger:      zap.NewExample(),
-		ID:          types.ID(id),
-		ClusterID:   0x1000,
-		Raft:        wrapper,
-		ServerStats: stats.NewServerStats("", ""),
-		LeaderStats: stats.NewLeaderStats(zap.NewExample(), strconv.Itoa(int(id))),
-		ErrorC:      make(chan error),
-	}
-	transport.Start()
-	for i, addr := range peers {
-		if i != id {
-			transport.AddPeer(types.ID(i), []string{addr})
-		}
-	}
-
+	oldwal := wal.Exist(waldir)
 	if !wal.Exist(waldir) {
 		err := os.Mkdir(waldir, 0705)
 		if err != nil {
@@ -102,7 +71,36 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan struct{}, co
 	storage.SetHardState(hardState)
 	storage.Append(entries)
 
-	wrapper.node = node
+	config := &raft.Config{
+		ID:              id,
+		ElectionTick:    10,
+		HeartbeatTick:   1,
+		Storage:         storage,
+		MaxSizePerMsg:   4096,
+		MaxInflightMsgs: 256,
+	}
+	if oldwal {
+		wrapper.node = raft.RestartNode(config)
+	} else {
+		wrapper.node = raft.StartNode(config, npeers)
+	}
+
+	transport := &rafthttp.Transport{
+		Logger:      zap.NewExample(),
+		ID:          types.ID(id),
+		ClusterID:   0x1000,
+		Raft:        wrapper,
+		ServerStats: stats.NewServerStats("", ""),
+		LeaderStats: stats.NewLeaderStats(zap.NewExample(), strconv.Itoa(int(id))),
+		ErrorC:      make(chan error),
+	}
+	transport.Start()
+	for i, addr := range peers {
+		if i != id {
+			transport.AddPeer(types.ID(i), []string{addr})
+		}
+	}
+
 	wrapper.wal = wal0
 	wrapper.storage = storage
 	wrapper.transport = transport
@@ -157,6 +155,7 @@ func (w *Wrapper) Run() {
 					case raftpb.EntryConfChange:
 						var cc raftpb.ConfChange
 						cc.Unmarshal(entry.Data)
+						w.node.ApplyConfChange(cc)
 						switch cc.Type {
 						case raftpb.ConfChangeAddNode:
 							if len(cc.Context) > 0 {
