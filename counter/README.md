@@ -76,7 +76,7 @@ $ curl -s -v -XPUT http://127.0.0.1:30003
 $ go run main.go
 ```
 
-- GET 0x02
+- GET 0x02 # wait leader election
 
 ```
 $ curl -s -v -XGET http://127.0.0.1:30002
