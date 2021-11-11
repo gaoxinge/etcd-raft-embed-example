@@ -55,7 +55,14 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan struct{}, co
 		MaxSizePerMsg:   4096,
 		MaxInflightMsgs: 256,
 	}
-	node := raft.StartNode(config, npeers)
+	waldir := fmt.Sprintf("counter/wal/%d", id)
+
+	var node raft.Node
+	if wal.Exist(waldir) {
+		node = raft.RestartNode(config)
+	} else {
+		node = raft.StartNode(config, npeers)
+	}
 
 	transport := &rafthttp.Transport{
 		Logger:      zap.NewExample(),
@@ -73,7 +80,6 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan struct{}, co
 		}
 	}
 
-	waldir := fmt.Sprintf("counter-%d", id)
 	if !wal.Exist(waldir) {
 		err := os.Mkdir(waldir, 0705)
 		if err != nil {
@@ -115,7 +121,7 @@ func (w *Wrapper) RunPropose() {
 	for {
 		select {
 		case <-w.proposeC:
-			w.node.Propose(context.TODO(), nil)
+			w.node.Propose(context.TODO(), []byte{0})
 		}
 	}
 }
@@ -140,7 +146,28 @@ func (w *Wrapper) Run() {
 			entries := rd.CommittedEntries
 			if len(entries) > 0 {
 				entries = entries[w.appliedIndex+1-entries[0].Index:]
-				w.commitC <- uint64(len(entries))
+				cnt := 0
+				for _, entry := range entries {
+					switch entry.Type {
+					case raftpb.EntryNormal:
+						if len(entry.Data) == 0 {
+							break
+						}
+						cnt += 1
+					case raftpb.EntryConfChange:
+						var cc raftpb.ConfChange
+						cc.Unmarshal(entry.Data)
+						switch cc.Type {
+						case raftpb.ConfChangeAddNode:
+							if len(cc.Context) > 0 {
+								w.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
+							}
+						case raftpb.ConfChangeRemoveNode:
+							w.transport.RemovePeer(types.ID(cc.NodeID))
+						}
+					}
+				}
+				w.commitC <- uint64(cnt)
 				w.appliedIndex = entries[len(entries)-1].Index
 			}
 
