@@ -3,6 +3,7 @@
 - [leader election](./leader-election)
 - [http transport](./http-transport)
 - [counter](./counter)
+- [kv](./kv)
 
 ## reference
 
