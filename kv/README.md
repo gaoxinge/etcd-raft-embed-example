@@ -81,6 +81,7 @@ $ go run main.go
 - GET 0x02 key # wait leader election
 
 ```
+$ curl -s -v -XGET http://127.0.0.1:30002/key
 *   Trying 127.0.0.1:30002...
 * Connected to 127.0.0.1 (127.0.0.1) port 30002 (#0)
 > GET /key HTTP/1.1

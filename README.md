@@ -4,6 +4,7 @@
 - [http transport](./http-transport)
 - [counter](./counter)
 - [kv](./kv)
+- [linear-kv](./linear-kv)
 
 ## reference
 
